@@ -837,6 +837,26 @@ T.createCounter = function() {
   }
 };
 
+T.createMarker = function(start) {
+  return {
+    idx: (start || -1),
+    values: [],
+    template: "@[[INDEX]]",
+    reReplace: /@\[\[(\d+)\]\]/mg,
+    next: function() {
+      return this.template.replace('INDEX', ++this.idx);
+    },
+    replaceBack: function(str, action) {
+      const This = this;
+      return str.replace(this.reReplace, (match, p1) => {
+        const index = parseInt(p1)
+        const value = This.values[index];
+        const replacement = action(value, index);
+        return replacement;
+      });
+    }
+  }
+}
 
 // max value key
 T.maxValueKey = function(numValueObj){
@@ -851,6 +871,7 @@ T.maxValueKey = function(numValueObj){
   }
   return maxk;
 }
+
 
 // Avoid invoking a function many times in a short period.
 T.createDelayCall = function(fn, delay){
@@ -982,6 +1003,11 @@ T.createFunQueue = function(){
 
   return {enqueue: enqueue}
 }
+
+T.escapeRegexp = function(string) {
+  return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 
 T.createAsyncFnQueue = function() {
   const queue = []
@@ -1235,7 +1261,6 @@ T.escapeHtml = function(string) {
       '=': '&#x3D;'
     })[s];
   });
-
 }
 
 

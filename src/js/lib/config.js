@@ -29,6 +29,7 @@ function getDefault(){
     saveIcon: false,
     saveWebFont: false,
     saveCssImage: false,
+    embedCss: false,
     htmlSaveClippingInformation: false,
 
     mdSaveClippingInformation: false,

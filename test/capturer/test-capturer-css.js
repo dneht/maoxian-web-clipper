@@ -20,7 +20,8 @@ function getParams() {
     clipId: '001',
     config: {
       saveWebFont: false,
-      saveCssImage: false
+      saveCssImage: false,
+      embedCss: false,
     },
     headerParams: {
       refUrl: 'https://a.org/index.html',
@@ -44,7 +45,7 @@ describe("Capturer css", () => {
       @import 'c.css';
       @import "d.css" screen;
       @import url('e.css') screen and (orientation:landscape);
-      @import url('e.css');
+      @import url(e.css);
     `;
     const linkText = '.CSSTEXT{}';
     ExtMsg.mockFetchTextStatic(linkText)
@@ -57,6 +58,60 @@ describe("Capturer css", () => {
     ExtMsg.clearMocks();
   });
 
+  it("capture text (@import css), embed css", async () => {
+    const params = getParams();
+    params.config.embedCss = true;
+    params.baseUrl = 'https://cdn.a.org/style.css';
+    params.text =
+      `@import url("a.css");\n`
+    + `@import 'b.css';`;
+    const linkText = 'CSSTEXT';
+    ExtMsg.mockFetchTextStatic(linkText)
+
+    // without media query list
+    var {cssText, tasks} = await Capturer.captureText(params);
+    H.assertEqual(tasks.length, 0);
+    H.assertEqual(cssText, "CSSTEXT\nCSSTEXT");
+    ExtMsg.clearMocks();
+    ExtMsg.mockFetchTextStatic(linkText)
+
+    // with media query list
+    params.text =
+      `@import url('a.css') print;\n`
+    + `@import url(b.css) projection, tv;\n`
+    + `@import "c.css" screen and (orientation:landscape);`;
+    var {cssText, tasks} = await Capturer.captureText(params);
+    H.assertEqual(tasks.length, 0);
+    H.assertEqual(cssText,
+      "@media print {\n"
+    + "CSSTEXT\n"
+    + "}\n\n"
+    + "@media projection, tv {\n"
+    + "CSSTEXT\n"
+    + "}\n\n"
+    + "@media screen and (orientation:landscape) {\n"
+    + "CSSTEXT\n"
+    + "}\n"
+    );
+
+    ExtMsg.clearMocks();
+  });
+
+  it("capture text (@import css multiply times), embed css", async () => {
+    const params = getParams();
+    params.config.embedCss = true;
+    params.baseUrl = 'https://cdn.a.org/style.css';
+    params.text =
+      `@import url("mika.css");\n`
+    + `@import url(mika.css);`;
+    const linkText = 'CSSTEXT';
+    ExtMsg.mockFetchTextStatic(linkText)
+    var {cssText, tasks} = await Capturer.captureText(params);
+    H.assertEqual(tasks.length, 0);
+    H.assertEqual(cssText, "CSSTEXT\nCSSTEXT");
+    ExtMsg.clearMocks();
+  });
+
   it("capture link - circle with self", async () => {
     const params = getParams();
     params.baseUrl = params.docUrl;
@@ -64,11 +119,26 @@ describe("Capturer css", () => {
     ExtMsg.mockFetchTextUrls({
       "https://a.org/style-A.css": "@import 'style-A.css';"
     });
-    const tasks = await Capturer.captureLink(params);
+    const {cssText, tasks} = await Capturer.captureLink(params);
     ExtMsg.clearMocks();
+    H.assertEqual(cssText, '');
     H.assertEqual(tasks.length, 1);
     const filename = tasks[0].filename.split('/').pop();
     H.assertTrue(tasks[0].text.indexOf(filename) > -1);
+  })
+
+  it("capture link - circle with self, embed css", async () => {
+    const params = getParams();
+    params.config.embedCss = true;
+    params.baseUrl = params.docUrl;
+    params.link = 'style-A.css';
+    ExtMsg.mockFetchTextUrls({
+      "https://a.org/style-A.css": "@import 'style-A.css';"
+    });
+    const {cssText, tasks} = await Capturer.captureLink(params);
+    ExtMsg.clearMocks();
+    H.assertEqual(cssText, "");
+    H.assertEqual(tasks.length, 0);
   })
 
   it("capture link - circle in two style", async () => {
@@ -79,13 +149,46 @@ describe("Capturer css", () => {
       "https://a.org/style-A.css": "@import 'style-B.css';",
       "https://a.org/style-B.css": "@import 'style-A.css';",
     });
-    const tasks = await Capturer.captureLink(params);
+    const {cssText, tasks} = await Capturer.captureLink(params);
     ExtMsg.clearMocks();
     const [taskA, taskB] = tasks;
     const taskAFilename = taskA.filename.split('/').pop();
     const taskBFilename = taskB.filename.split('/').pop();
+    H.assertEqual(cssText, '');
     H.assertTrue(taskA.text.indexOf(taskBFilename) > -1)
     H.assertTrue(taskB.text.indexOf(taskAFilename) > -1)
+  });
+
+  it("capture link - circle in two style, embed css", async () => {
+    const params = getParams();
+    params.config.embedCss = true;
+    params.baseUrl = params.docUrl;
+    params.link = 'style-A.css';
+    ExtMsg.mockFetchTextUrls({
+      "https://a.org/style-A.css": "@import 'style-B.css';",
+      "https://a.org/style-B.css": "CSSTEXT@import 'style-A.css';",
+    });
+    const {cssText, tasks} = await Capturer.captureLink(params);
+    ExtMsg.clearMocks();
+    H.assertEqual(tasks.length, 0);
+    H.assertEqual(cssText, 'CSSTEXT');
+  });
+
+  it("capture link - embed", async () => {
+    const params = getParams();
+    params.config.embedCss = true;
+    params.config.saveCssImage = true;
+    params.baseUrl = params.docUrl;
+    params.link = 'style-A.css';
+    ExtMsg.mockFetchTextUrls({
+      "https://a.org/style-A.css": "main {background-image: url(imgs/a.png);};"
+    });
+    const {cssText, tasks} = await Capturer.captureLink(params);
+    ExtMsg.clearMocks();
+    H.assertEqual(tasks.length, 1);
+    const re = /assets\/[^.]+.png/;
+    H.assertMatch(tasks[0].filename, re);
+    H.assertMatch(cssText, re);
   });
 
   const WEB_FONT_CSS_A = `@font-face {src: url(foo.woff);}`;
@@ -170,6 +273,20 @@ describe("Capturer css", () => {
     H.assertMatch(cssText, /url\("[^\.\/]+.bmp"\)/);
   });
 
+  it("capture text (css img) - asset path - text in embed style", async() => {
+    const params = getParams();
+    params.text = IMG_CSS;
+    params.baseUrl = 'https://a.org/style.css';
+    params.cssUrl = params.docUrl;
+    params.config.saveCssImage = true;
+    params.config.embedCss = true;
+    var {cssText, tasks} = await Capturer.captureText(params);
+    H.assertEqual(tasks.length, 3);
+    H.assertMatch(cssText, /url\("assets\/[^\.\/]+.jpg"\)/);
+    H.assertMatch(cssText, /url\("assets\/[^\.\/]+.png"\)/);
+    H.assertMatch(cssText, /url\("assets\/[^\.\/]+.bmp"\)/);
+  });
+
   function testFixStyle(text, n = 1) {
     it("fix style : " + text, async() => {
       const params = getParams();
@@ -196,7 +313,5 @@ describe("Capturer css", () => {
   testFixStyle('.body > .target', 0);
 
 })
-
-
 
 

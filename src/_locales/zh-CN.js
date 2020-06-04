@@ -312,6 +312,7 @@
     "setting.save-icon-input.label": "保存网站图标",
     "setting.save-web-font-input.label": "保存Web字体(建议取消勾选)",
     "setting.save-css-image-input.label": "存储 CSS 背景图(建议取消勾选)",
+    "setting.embed-css-input.label": "使用嵌入式样式（建议取消勾选）",
     "setting.save-domain-tag-input.label": "裁剪时，添加当前域名为标签",
     "setting.hotkey-switch-enabled-input.label": "启用快捷键 `c` (裁剪开关)",
     "setting.mouse-mode-enabled-input.label": "鼠标友好模式",

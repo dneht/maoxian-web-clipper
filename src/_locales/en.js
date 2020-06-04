@@ -315,6 +315,7 @@
     "setting.save-icon-input.label": "Save website icons",
     "setting.save-web-font-input.label": "Save web fonts (not recommended)",
     "setting.save-css-image-input.label": "Save CSS background images (not recommended)",
+    "setting.embed-css-input.label": "Embed external styles (not recommended)",
     "setting.save-domain-tag-input.label": "Save current domain as tag",
     "setting.hotkey-switch-enabled-input.label": "Enable hotkey `c` (clip switch)",
     "setting.mouse-mode-enabled-input.label": "Mouse friendly mode",

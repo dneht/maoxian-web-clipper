@@ -15,6 +15,7 @@ import CapturerCss from './css.js';
  *   - {String} docUrl
  *   - {String} clipId
  *   - {Object} storageInfo
+ *   - {Document} doc
  *   - {Object} mimeTypeDict
  *   - {Object} config
  *   - {Object} headerParams
@@ -87,7 +88,7 @@ function captureIcon({node, href, opts}) {
 }
 
 async function captureStylesheet({node, linkTypes, href, opts}) {
-  const {baseUrl, docUrl, clipId, storageInfo, mimeTypeDict = {}, config} = opts;
+  const {baseUrl, docUrl, clipId, storageInfo, doc, mimeTypeDict = {}, config} = opts;
 
   /*
    * TODO Shall we handle alternative style sheets?
@@ -103,17 +104,24 @@ async function captureStylesheet({node, linkTypes, href, opts}) {
   } else {
     const {isValid, url, message} = T.completeUrl(href, baseUrl);
     if (isValid) {
-      const assetName = Asset.getNameByLink({
-        link: url,
-        extension: 'css',
-        prefix: clipId
-      });
-      const path = Asset.getPath({storageInfo, assetName});
-      const tasks = await CapturerCss.captureLink(Object.assign({
+      const {cssText, tasks} = await CapturerCss.captureLink(Object.assign({
         link: url, }, opts));
-      node.setAttribute('href', path);
-      node = handleOtherAttrs(node);
-      return {node: node, tasks: tasks};
+      if (config.embedCss) {
+        const newNode = doc.createElement('style');
+        newNode.textContent = "\n" + cssText;
+        node.parentNode.replaceChild(newNode, node);
+        return {node: newNode, tasks: tasks};
+      } else {
+        const assetName = Asset.getNameByLink({
+          link: url,
+          extension: 'css',
+          prefix: clipId
+        });
+        const path = Asset.getPath({storageInfo, assetName});
+        node.setAttribute('href', path);
+        node = handleOtherAttrs(node);
+        return {node: node, tasks: tasks};
+      }
     } else {
       node.setAttribute('data-mx-warn', message);
       return {node: node, tasks: []};
