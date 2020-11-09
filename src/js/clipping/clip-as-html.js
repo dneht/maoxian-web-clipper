@@ -221,7 +221,7 @@ async function captureNode(node, params) {
   let r = {node: node, tasks: []}
   switch (node.tagName.toUpperCase()) {
     case 'LINK':
-      opts = {baseUrl, docUrl, storageInfo, clipId,
+      opts = {baseUrl, docUrl, storageInfo, doc, clipId,
         mimeTypeDict, config, headerParams, needFixStyle};
       r = await CapturerLink.capture(node, opts);
       break;
